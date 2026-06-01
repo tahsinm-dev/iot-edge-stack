@@ -1,93 +1,142 @@
-<!--
-  TIPP: <PROJEKTNAME> oben durch deinen finalen Namen ersetzen (z. B. iot-edge-stack).
-  Vorschläge: iot-edge-stack · esp32-mqtt-prometheus-grafana · sensormesh-pi
--->
+# IoT Edge Stack
 
-# IoT-Edge-Stack — Vernetzte IoT-Systeme
+> End-to-end IoT telemetry pipeline on Raspberry Pi: **ESP32 sensor nodes → Wi-Fi edge gateway (routing/NAT) → monitoring server (MQTT + Prometheus) → Grafana dashboards.** The server-side backend also ships as a one-command Docker stack.
 
-**ESP32 + BME280 · Raspberry Pi Edge/Server · MQTT · Prometheus · Grafana**
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a)
+![Firmware](https://img.shields.io/badge/firmware-ESP32-000000)
+![Protocol](https://img.shields.io/badge/protocol-MQTT-660066)
+![Monitoring](https://img.shields.io/badge/monitoring-Prometheus%20%2B%20Grafana-e6522c)
+![IaC](https://img.shields.io/badge/IaC-Docker%20%2B%20Ansible-2496ed)
 
-Ende-zu-Ende-IoT-Monitoring auf zwei Raspberry Pi Zero 2 W: Umweltsensoren (Temperatur, Luftfeuchte, Luftdruck) auf ESP32 publizieren per MQTT über ein Edge-Gateway an einen zentralen Broker; Prometheus sammelt die Metriken, Grafana visualisiert sie. Aufgebaut im Rahmen der Lehrveranstaltung *Vernetzte IoT Systeme* (FH Technikum Wien), **Variante 1**.
+A self-contained, reproducible IoT system built around two Raspberry Pi Zero 2 W
+nodes. **ESP32 + BME280** sensors publish temperature, humidity and pressure over
+MQTT. An **edge gateway** bridges an isolated sensor Wi-Fi into a backbone Wi-Fi
+and routes the traffic to a **monitoring server**, where the data is stored in
+Prometheus and visualised in Grafana.
 
-> Besonderheit dieses Aufbaus: Der EDGE arbeitet **ohne zweiten WLAN-Adapter** — Access Point *und* Client laufen über ein virtuelles Interface (`uap0`) auf einem einzigen Funkchip, dhcpcd-basiert (ohne NetworkManager). Siehe Sicherheitshinweis.
+---
 
-## Architektur
+## Highlights
+
+- **Wi-Fi networking on Linux** — Raspberry Pis acting as access point and upstream
+  client (`hostapd`, `wpa_supplicant`, `dnsmasq`), with **IP forwarding and NAT**
+  between an isolated sensor subnet and the backbone.
+- **Edge gateway** — receives sensor data on one radio and forwards it upstream on a
+  second radio (USB Wi-Fi adapter), keeping the sensor network segmented.
+- **Observability** — custom MQTT→Prometheus exporter, Prometheus scraping and
+  **alerting rules**, Grafana dashboards **provisioned as code**.
+- **Infrastructure as code** — the full backend runs as a `docker compose` stack;
+  the Raspberry Pis are provisioned with **Ansible**.
+- **Embedded firmware** — ESP32 sketch (C++/Arduino) with the BME280 sensor,
+  auto-reconnect, MQTT Last-Will and a Wi-Fi signal metric.
+- **Security-aware** — authenticated MQTT broker, non-root containers, no secrets in
+  version control.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    ESP["ESP32 + BME280<br/>(sensor node)"]
+
+    subgraph EDGE["EDGE - Raspberry Pi Zero 2 W"]
+        EAP["wlan0 onboard<br/>AP: EDGE-IOT-XX<br/>192.168.166.1"]
+        ESTA["wlan1 USB<br/>STA to SERVER-IOT-XX<br/>192.168.176.2"]
+        EAP -->|"IP forward + NAT"| ESTA
+    end
+
+    subgraph SERVER["SERVER - Raspberry Pi Zero 2 W"]
+        SAP["wlan0 onboard<br/>AP: SERVER-IOT-XX<br/>192.168.176.1"]
+        MQ["Mosquitto<br/>:1883"]
+        EX["MQTT exporter<br/>:9101"]
+        PR["Prometheus<br/>:9090"]
+        SAP --- MQ
+        MQ --> EX --> PR
+    end
+
+    GF["Grafana<br/>(laptop / Docker)"]
+
+    ESP -->|"Wi-Fi - sensor net<br/>192.168.166.0/24"| EAP
+    ESTA -->|"Wi-Fi - backbone<br/>192.168.176.0/24"| SAP
+    PR --> GF
 ```
-[ESP32 + BME280] --WLAN1--> [EDGE  Pi Zero 2 W] --WLAN2--> [SERVER  Pi Zero 2 W] --(HTTP)--> [Laptop]
-   MQTT-Publisher            AP(uap0)+STA(wlan0)            AP(wlan0)                          Grafana
-                             DHCP, NAT/Routing, tshark      Mosquitto, Prometheus, tshark      Wireshark
+
+**Data flow:** the ESP32 joins the edge access point and publishes
+`sensor/<device>/bme280` JSON messages. The edge gateway NATs the traffic onto the
+backbone, where Mosquitto receives it. The exporter turns the MQTT payloads into
+Prometheus metrics, Prometheus scrapes and stores them, and Grafana visualises the
+result.
+
+### Network plan
+
+| Segment      | Subnet             | Gateway / AP    | SSID            |
+|--------------|--------------------|-----------------|-----------------|
+| Sensor net   | `192.168.166.0/24` | EDGE `…166.1`   | `EDGE-IOT-XX`   |
+| Backbone net | `192.168.176.0/24` | SERVER `…176.1` | `SERVER-IOT-XX` |
+
+Server services: Mosquitto `:1883`, Prometheus `:9090`, MQTT exporter `:9101`.
+
+## Results
+
+Live Grafana dashboard — BME280 temperature, humidity, pressure and ESP32 Wi-Fi
+signal for two sensor nodes, provisioned automatically from code:
+
+![Grafana dashboard](docs/images/grafana-dashboard.png)
+
+## Tech stack
+
+| Layer      | Technology                                                               |
+|------------|--------------------------------------------------------------------------|
+| Firmware   | ESP32, BME280, Arduino/C++, PubSubClient (MQTT)                          |
+| Networking | Raspberry Pi OS, systemd, hostapd, wpa_supplicant, dnsmasq, iptables/NAT |
+| Messaging  | Eclipse Mosquitto (MQTT)                                                  |
+| Monitoring | Prometheus, custom Python exporter, Grafana                              |
+| Automation | Docker / Docker Compose, Ansible, GitHub Actions                        |
+
+## Run it
+
+### Option A — Containerised backend (no hardware needed)
+
+Bring up the whole server-side stack on any Docker host:
+
+```bash
+cd monitoring
+cp .env.example .env
+docker compose up -d --build
+# Grafana    -> http://localhost:3000
+# Prometheus -> http://localhost:9090
 ```
-Datenfluss (Monitoring): ESP32 → MQTT → Mosquitto (SERVER) → MQTT-Exporter → Prometheus → Grafana.
-*(Architekturbild unter `docs/architektur.png` einfügen.)*
 
-## Hardware (BOM)
-| Komponente | Anzahl | Rolle |
-|---|---|---|
-| Raspberry Pi Zero 2 W | 2 | EDGE (edgepi), SERVER (serverpi) |
-| ESP32-DEV-30P | 2 | Sensor-Nodes / MQTT-Publisher |
-| BME280 (I2C) | 2 | Temperatur, Luftfeuchte, Luftdruck |
-| microSD | 2 | OS der Pis |
-| USB-Hub mit Netzteil, Kabel | — | Strom/Verkabelung |
-| Windows-11-Laptop | 1 | Grafana, Wireshark, Claude Code, SSH |
+See [`monitoring/README.md`](monitoring/README.md) for details and how to feed demo
+data.
 
-## Software-Stack
-Raspberry Pi OS Legacy (Debian 12 „Bookworm", 32-bit) · dhcpcd · hostapd · dnsmasq · wpa_supplicant · iptables · Mosquitto (MQTT) · Prometheus · paho-mqtt + prometheus-client (Exporter) · Grafana · Wireshark/tshark · Arduino IDE (ESP32, Adafruit BME280 / Unified Sensor / PubSubClient).
+### Option B — Full hardware deployment
 
-## Netzwerkplan
-| Netz | Bereich | Gerät / IP | SSID | Kanal |
-|---|---|---|---|---|
-| WLAN1 (Sensornetz) | 192.168.166.0/24 | EDGE `uap0` = 192.168.166.1, DHCP .100–.200 | EDGE-IOT-XX | 11 |
-| WLAN2 (Backbone) | 192.168.176.0/24 | SERVER `wlan0` = 192.168.176.1, DHCP .100–.200 | SERVER-IOT-XX | 11 |
-| Dienste | — | Mosquitto :1883, Prometheus :9090 (beide auf 192.168.176.1) | — | — |
+Provision the two Raspberry Pis and flash the ESP32. Configuration templates live in
+[`edge/`](edge/) and [`server/`](server/); the build and commissioning log is in
+[`PROTOKOLL.md`](PROTOKOLL.md).
 
-> `XX` = persönliche Labornummer (Moodle). In versionierten Konfigs stehen **Platzhalter** statt echter Passwörter.
+## Repository structure
 
-## Voraussetzungen
-- Zwei mit Raspberry Pi OS Legacy Lite geflashte Pi Zero 2 W (SSH + User gesetzt), erreichbar als `edgepi`/`serverpi`.
-- Windows-Laptop mit SSH-Zugang zu beiden Pis, Arduino IDE, Grafana, Wireshark.
-- Optional: GitHub CLI (`gh`) zum Veröffentlichen.
-
-## Aufbau / Reproduktion
-Der Aufbau wird (semi-)automatisch mit **Claude Code** durchgeführt; die Steuerdatei `CLAUDE.md` enthält den vollständigen Ablauf, alle verbindlichen Parameter und die Rollenverteilung Mensch/Agent. Der konkrete Verlauf jedes Aufbaus ist in `PROTOKOLL.md` dokumentiert. Reihenfolge in Kurzform:
-1. Beide Pis: System aktualisieren, Grundwerkzeuge, **dhcpcd statt NetworkManager**.
-2. SERVER: AP (Kanal 11), DHCP, Mosquitto, Prometheus, MQTT-Exporter.
-3. EDGE: `uap0`-AP (Kanal 11) + `wlan0`-Client zum SERVER, DHCP, IP-Forwarding, NAT.
-4. ESP32: Sketch mit BME280 + MQTT (pro Board eindeutige Client-ID/Topic) flashen.
-5. Grafana am Laptop an Prometheus anbinden.
-6. Prüfliste/Inbetriebnahme abarbeiten (siehe unten).
-
-## Repo-Struktur
 ```
 .
-├── CLAUDE.md            # Steuerdatei für Claude Code
-├── README.md
-├── PROTOKOLL.md         # fortlaufendes Projektprotokoll
-├── .claude/settings.json
-├── configs/edge/        # uap0.service, dhcpcd, hostapd, dnsmasq, wpa_supplicant, sysctl, iptables
-├── configs/server/      # dhcpcd, hostapd, dnsmasq, mosquitto, prometheus.yml
-├── esp32/               # esp32_bme280_mqtt.ino
-├── exporter/            # mqtt_exporter.py (MQTT → Prometheus)
-├── scripts/             # edge_apsta_check.sh, Deploy-Helfer
-├── docs/                # architektur.png, netzwerkplan.md
-└── abgabe/              # Screenshot-Vorlage
+├── firmware/        # ESP32 sketch (BME280 -> MQTT)
+├── edge/            # EDGE Pi: access point + uplink + NAT configs
+├── server/          # SERVER Pi: access point + MQTT/Prometheus configs
+├── monitoring/      # containerised backend (docker compose, provisioning)
+├── ansible/         # automated Raspberry Pi provisioning
+├── docs/            # architecture, network plan, images
+└── PROTOKOLL.md     # build & commissioning log
 ```
 
-## Verifikation / Inbetriebnahme (Prüfliste)
-- [ ] EDGE-WLAN `EDGE-IOT-XX` sichtbar
-- [ ] ESP32 erhält DHCP aus `192.168.166.0/24`
-- [ ] SERVER-WLAN `SERVER-IOT-XX` sichtbar
-- [ ] EDGE erhält DHCP aus `192.168.176.0/24`
-- [ ] EDGE kann `192.168.176.1` anpingen
-- [ ] Mosquitto lauscht auf Port `1883`
-- [ ] ESP32 publiziert unter `sensor/#`
-- [ ] Prometheus erreichbar unter `http://192.168.176.1:9090`
-- [ ] Grafana nutzt Prometheus als Datenquelle
-- [ ] tshark zeigt MQTT- bzw. DHCP-Verkehr (EDGE + SERVER)
+## Design decisions
 
-## Sicherheitshinweis
-- **Single-Radio-AP+STA** (AP und Client auf einem Funkchip) ist offiziell **nicht unterstützt** und kann mit dem brcmfmac-Treiber instabil sein. Funktioniert es nicht zuverlässig, ist ein zweiter USB-WLAN-Adapter am EDGE die robuste Lösung.
-- `allow_anonymous true` bei Mosquitto ist **nur für ein isoliertes Labor** gedacht — nicht für produktive Netze.
-- Dieses Repo enthält **keine echten Zugangsdaten**; WLAN-Passphrasen stehen als Platzhalter in den Konfigs.
+The edge node runs an access point **and** an upstream client at the same time. The
+Raspberry Pi's on-board Wi-Fi chip can do this only on a single shared channel and
+proved unreliable for concurrent data traffic, so the design uses a **second (USB)
+Wi-Fi adapter** on the edge — one radio per role. The full reasoning is documented
+in [`docs/architecture.md`](docs/architecture.md).
 
-## Lizenz & Kontext
-Lehrprojekt FH Technikum Wien, *Vernetzte IoT Systeme* (Variante 1). Lizenz: `<z. B. MIT>` — `LICENSE`-Datei ergänzen. Autor: `<Name>`.
+## License
+
+Released under the [MIT License](LICENSE).
