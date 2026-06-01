@@ -22,6 +22,9 @@ ansible/secrets.yml
 # --- Slides: PPTX is generated from docs/slides.md (the PDF is committed) ---
 docs/slides.pptx
 
+# --- FH submission screenshots: keep local, NOT in the public repo ---
+abgabe/screenshots/
+
 # --- Python ---
 __pycache__/
 *.pyc
