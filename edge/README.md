@@ -23,20 +23,20 @@ NAT               ──  192.168.166.0/24  ->  wlan1 (MASQUERADE)
 | `dnsmasq.conf`              | `/etc/dnsmasq.conf`                               |
 | `ap-ip.service`             | `/etc/systemd/system/ap-ip.service`               |
 | `wpa_supplicant-wlan1.conf` | `/etc/wpa_supplicant/wpa_supplicant-wlan1.conf`   |
-| `dhcpcd.conf`               | appended to `/etc/dhcpcd.conf`                     |
+| `20-wlan1.network`          | `/etc/systemd/network/20-wlan1.network`           |
 | `sysctl-ip-forward.conf`    | `/etc/sysctl.d/99-ip-forward.conf`                |
 | `iptables-rules.v4`         | `/etc/iptables/rules.v4`                          |
 
 ## Manual deployment (summary)
 
 ```bash
-sudo apt install -y hostapd dnsmasq wpasupplicant dhcpcd5 iptables-persistent
+sudo apt install -y hostapd dnsmasq wpasupplicant iptables-persistent
 sudo systemctl unmask hostapd
 
 # copy the files above, set DAEMON_CONF in /etc/default/hostapd,
 # disable NetworkManager, then:
 sudo sysctl --system
-sudo systemctl enable --now ap-ip hostapd dnsmasq wpa_supplicant@wlan1 dhcpcd netfilter-persistent
+sudo systemctl enable --now ap-ip hostapd dnsmasq wpa_supplicant@wlan1 systemd-networkd netfilter-persistent
 ```
 
 ## Notes
@@ -46,3 +46,6 @@ sudo systemctl enable --now ap-ip hostapd dnsmasq wpa_supplicant@wlan1 dhcpcd ne
 - The AP (`wlan0`) and the uplink (`wlan1`) are independent radios, so they can use
   **different channels** and the uplink uses normal DHCP — none of the single-radio
   limitations apply.
+- The uplink gets its address from **systemd-networkd**, not dhcpcd: dhcpcd's
+  seccomp privilege separation is killed (SIGSYS) on Raspberry Pi OS Bookworm
+  (armhf). networkd is built in and matches only `wlan1`, leaving the AP untouched.

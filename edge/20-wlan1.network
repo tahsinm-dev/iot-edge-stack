@@ -1,0 +1,12 @@
+# EDGE uplink (USB wlan1) - DHCP client via systemd-networkd.
+# Deploy to: /etc/systemd/network/20-wlan1.network  (then enable systemd-networkd)
+#
+# Why not dhcpcd: on Raspberry Pi OS Bookworm (armhf) dhcpcd's seccomp-based
+# privilege separation is killed by the kernel (SIGSYS), so the uplink never
+# obtained a lease. systemd-networkd is built in and reliable, and it leaves the
+# access-point interface (wlan0) untouched because it only matches wlan1.
+[Match]
+Name=wlan1
+
+[Network]
+DHCP=ipv4

@@ -23,7 +23,6 @@
           - hostapd
           - dnsmasq
           - wpasupplicant
-          - dhcpcd5
           - iptables-persistent
         update_cache: true
         state: present
@@ -91,14 +90,11 @@
         - { find: "__SERVER_WIFI_PW__", value: "{{ server_wifi_password }}" }
       no_log: true
 
-    - name: Restrict dhcpcd to the USB uplink (wlan1)
-      ansible.builtin.blockinfile:
-        path: /etc/dhcpcd.conf
-        create: true
+    - name: Configure the uplink (wlan1) via systemd-networkd
+      ansible.builtin.copy:
+        src: ../edge/20-wlan1.network
+        dest: /etc/systemd/network/20-wlan1.network
         mode: "0644"
-        marker: "# {mark} IOT EDGE"
-        block: |
-          denyinterfaces wlan0
 
     - name: Enable IP forwarding
       ansible.builtin.copy:
@@ -124,5 +120,5 @@
         - hostapd
         - dnsmasq
         - wpa_supplicant@wlan1
-        - dhcpcd
+        - systemd-networkd
         - netfilter-persistent
