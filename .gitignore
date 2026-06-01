@@ -15,6 +15,10 @@ CLAUDE.md
 dnsmasq.leases
 *.log
 
+# --- Docker monitoring stack: lokale Secrets/Laufzeitdaten ---
+monitoring/.env
+monitoring/mosquitto/config/passwordfile
+
 # --- Python (Exporter) ---
 __pycache__/
 *.pyc

@@ -1,0 +1,29 @@
+groups:
+  - name: iot-sensors
+    rules:
+      - alert: SensorOffline
+        expr: time() - timestamp(bme280_temperature_celsius) > 60
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sensor {{ $labels.device }} is offline"
+          description: "No BME280 update from {{ $labels.device }} for over 60 seconds."
+
+      - alert: MqttExporterDown
+        expr: up{job="mqtt_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MQTT exporter is down"
+          description: "Prometheus cannot scrape the MQTT exporter target."
+
+      - alert: TemperatureOutOfRange
+        expr: bme280_temperature_celsius < -10 or bme280_temperature_celsius > 60
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Implausible temperature from {{ $labels.device }}"
+          description: "Reading {{ $value }} C is outside the expected indoor range."

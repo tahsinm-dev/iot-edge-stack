@@ -1,0 +1,100 @@
+# IoT Edge Stack - containerised monitoring backend
+#
+# Runs the full server-side stack (MQTT broker, metrics exporter, time-series
+# database and dashboards) on any Docker host - laptop, VM or cloud - so the
+# project can be demoed without the Raspberry Pi hardware.
+#
+#   docker compose up -d
+#   Grafana:    http://localhost:3000   (admin / see .env)
+#   Prometheus: http://localhost:9090
+#   MQTT:       localhost:1883          (auth, see .env)
+name: iot-edge-monitoring
+
+services:
+  # --- One-shot: create the Mosquitto password file from .env on first run ---
+  mosquitto-init:
+    image: eclipse-mosquitto:2.0
+    environment:
+      MQTT_USER: ${MQTT_USER:-iot}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-changeme}
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /mosquitto/config/passwordfile ]; then
+          mosquitto_passwd -b -c /mosquitto/config/passwordfile "$$MQTT_USER" "$$MQTT_PASSWORD"
+          echo "Created Mosquitto password file for user '$$MQTT_USER'."
+        else
+          echo "Mosquitto password file already exists - keeping it."
+        fi
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    restart: unless-stopped
+    depends_on:
+      mosquitto-init:
+        condition: service_completed_successfully
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/config/passwordfile:/mosquitto/config/passwordfile:ro
+      - mosquitto_data:/mosquitto/data
+
+  mqtt-exporter:
+    build: ./exporter
+    image: iot-edge/mqtt-exporter:latest
+    container_name: mqtt-exporter
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      MQTT_USER: ${MQTT_USER:-iot}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-changeme}
+      MQTT_TOPIC: "sensor/#"
+      EXPORTER_PORT: "9101"
+    ports:
+      - "9101:9101"
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    restart: unless-stopped
+    depends_on:
+      - mqtt-exporter
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+
+volumes:
+  mosquitto_data:
+  prometheus_data:
+  grafana_data:
