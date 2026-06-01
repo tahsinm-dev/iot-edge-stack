@@ -19,6 +19,10 @@ dnsmasq.leases
 monitoring/.env
 monitoring/mosquitto/config/passwordfile
 
+# --- Ansible: Secrets/Laufzeit ---
+ansible/secrets.yml
+*.retry
+
 # --- Python (Exporter) ---
 __pycache__/
 *.pyc

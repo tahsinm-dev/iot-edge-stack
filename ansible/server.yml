@@ -1,0 +1,144 @@
+---
+- name: Provision the SERVER node (backbone AP + monitoring)
+  hosts: server
+  become: true
+
+  handlers:
+    - name: restart hostapd
+      ansible.builtin.service:
+        name: hostapd
+        state: restarted
+    - name: restart dnsmasq
+      ansible.builtin.service:
+        name: dnsmasq
+        state: restarted
+    - name: restart mosquitto
+      ansible.builtin.service:
+        name: mosquitto
+        state: restarted
+
+  tasks:
+    - name: Install packages
+      ansible.builtin.apt:
+        name:
+          - hostapd
+          - dnsmasq
+          - mosquitto
+          - mosquitto-clients
+          - prometheus
+          - python3-venv
+        update_cache: true
+        state: present
+
+    - name: Unmask and enable hostapd
+      ansible.builtin.systemd:
+        name: hostapd
+        masked: false
+        enabled: true
+
+    - name: Point hostapd at its config file
+      ansible.builtin.lineinfile:
+        path: /etc/default/hostapd
+        regexp: '^#?DAEMON_CONF='
+        line: 'DAEMON_CONF="/etc/hostapd/hostapd.conf"'
+
+    - name: Disable NetworkManager (radios are managed directly)
+      ansible.builtin.systemd:
+        name: NetworkManager
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Deploy access-point configuration
+      ansible.builtin.copy:
+        src: "../server/{{ item }}"
+        dest: "/etc/{{ item }}"
+        mode: "0644"
+      loop:
+        - dnsmasq.conf
+      notify: restart dnsmasq
+
+    - name: Deploy hostapd configuration
+      ansible.builtin.copy:
+        src: ../server/hostapd.conf
+        dest: /etc/hostapd/hostapd.conf
+        mode: "0600"
+      notify: restart hostapd
+
+    - name: Fill in SSID and passphrase
+      ansible.builtin.replace:
+        path: /etc/hostapd/hostapd.conf
+        regexp: "{{ item.find }}"
+        replace: "{{ item.value }}"
+      loop:
+        - { find: "SERVER-IOT-XX", value: "{{ server_ssid }}" }
+        - { find: "__SERVER_WIFI_PW__", value: "{{ server_wifi_password }}" }
+      no_log: true
+      notify: restart hostapd
+
+    - name: Deploy static-IP service and Prometheus config
+      ansible.builtin.copy:
+        src: "../server/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - { src: ap-ip.service, dest: /etc/systemd/system/ap-ip.service }
+        - { src: prometheus.yml, dest: /etc/prometheus/prometheus.yml }
+
+    - name: Deploy Mosquitto configuration
+      ansible.builtin.copy:
+        src: ../server/mosquitto.conf
+        dest: /etc/mosquitto/conf.d/iot.conf
+        mode: "0644"
+      notify: restart mosquitto
+
+    - name: Create Mosquitto user
+      ansible.builtin.command:
+        cmd: "mosquitto_passwd -b /etc/mosquitto/passwd {{ mqtt_user }} {{ mqtt_password }}"
+        creates: /etc/mosquitto/passwd
+      no_log: true
+      notify: restart mosquitto
+
+    - name: Install the MQTT exporter
+      ansible.builtin.copy:
+        src: ../monitoring/exporter/mqtt_exporter.py
+        dest: /opt/mqtt-exporter/mqtt_exporter.py
+        mode: "0755"
+
+    - name: Create exporter virtualenv
+      ansible.builtin.pip:
+        name:
+          - paho-mqtt
+          - prometheus-client
+        virtualenv: /opt/mqtt-exporter/venv
+        virtualenv_command: python3 -m venv
+
+    - name: Configure exporter environment
+      ansible.builtin.copy:
+        dest: /etc/mqtt-exporter.env
+        mode: "0600"
+        content: |
+          MQTT_HOST=localhost
+          MQTT_USER={{ mqtt_user }}
+          MQTT_PASSWORD={{ mqtt_password }}
+      no_log: true
+
+    - name: Install exporter service
+      ansible.builtin.copy:
+        src: ../server/mqtt-exporter.service
+        dest: /etc/systemd/system/mqtt-exporter.service
+        mode: "0644"
+
+    - name: Enable and start all services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+      loop:
+        - ap-ip
+        - hostapd
+        - dnsmasq
+        - mosquitto
+        - prometheus
+        - mqtt-exporter

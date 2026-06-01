@@ -1,0 +1,5 @@
+---
+# Provision both Raspberry Pi nodes.
+#   ansible-playbook site.yml --extra-vars @secrets.yml --ask-vault-pass
+- import_playbook: server.yml
+- import_playbook: edge.yml

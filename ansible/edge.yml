@@ -1,0 +1,128 @@
+---
+- name: Provision the EDGE node (dual-radio gateway)
+  hosts: edge
+  become: true
+
+  handlers:
+    - name: restart hostapd
+      ansible.builtin.service:
+        name: hostapd
+        state: restarted
+    - name: restart dnsmasq
+      ansible.builtin.service:
+        name: dnsmasq
+        state: restarted
+    - name: reload sysctl
+      ansible.builtin.command: sysctl --system
+      changed_when: false
+
+  tasks:
+    - name: Install packages
+      ansible.builtin.apt:
+        name:
+          - hostapd
+          - dnsmasq
+          - wpasupplicant
+          - dhcpcd5
+          - iptables-persistent
+        update_cache: true
+        state: present
+
+    - name: Unmask and enable hostapd
+      ansible.builtin.systemd:
+        name: hostapd
+        masked: false
+        enabled: true
+
+    - name: Point hostapd at its config file
+      ansible.builtin.lineinfile:
+        path: /etc/default/hostapd
+        regexp: '^#?DAEMON_CONF='
+        line: 'DAEMON_CONF="/etc/hostapd/hostapd.conf"'
+
+    - name: Disable NetworkManager (radios are managed directly)
+      ansible.builtin.systemd:
+        name: NetworkManager
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Deploy hostapd configuration
+      ansible.builtin.copy:
+        src: ../edge/hostapd.conf
+        dest: /etc/hostapd/hostapd.conf
+        mode: "0600"
+      notify: restart hostapd
+
+    - name: Fill in the access-point SSID and passphrase
+      ansible.builtin.replace:
+        path: /etc/hostapd/hostapd.conf
+        regexp: "{{ item.find }}"
+        replace: "{{ item.value }}"
+      loop:
+        - { find: "EDGE-IOT-XX", value: "{{ edge_ssid }}" }
+        - { find: "__EDGE_WIFI_PW__", value: "{{ edge_wifi_password }}" }
+      no_log: true
+      notify: restart hostapd
+
+    - name: Deploy dnsmasq and the static-IP service
+      ansible.builtin.copy:
+        src: "../edge/{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - { src: dnsmasq.conf, dest: /etc/dnsmasq.conf }
+        - { src: ap-ip.service, dest: /etc/systemd/system/ap-ip.service }
+      notify: restart dnsmasq
+
+    - name: Deploy the uplink supplicant config
+      ansible.builtin.copy:
+        src: ../edge/wpa_supplicant-wlan1.conf
+        dest: /etc/wpa_supplicant/wpa_supplicant-wlan1.conf
+        mode: "0600"
+
+    - name: Fill in the uplink SSID and passphrase
+      ansible.builtin.replace:
+        path: /etc/wpa_supplicant/wpa_supplicant-wlan1.conf
+        regexp: "{{ item.find }}"
+        replace: "{{ item.value }}"
+      loop:
+        - { find: "SERVER-IOT-XX", value: "{{ server_ssid }}" }
+        - { find: "__SERVER_WIFI_PW__", value: "{{ server_wifi_password }}" }
+      no_log: true
+
+    - name: Restrict dhcpcd to the USB uplink (wlan1)
+      ansible.builtin.blockinfile:
+        path: /etc/dhcpcd.conf
+        create: true
+        mode: "0644"
+        marker: "# {mark} IOT EDGE"
+        block: |
+          denyinterfaces wlan0
+
+    - name: Enable IP forwarding
+      ansible.builtin.copy:
+        src: ../edge/sysctl-ip-forward.conf
+        dest: /etc/sysctl.d/99-ip-forward.conf
+        mode: "0644"
+      notify: reload sysctl
+
+    - name: Deploy NAT rules
+      ansible.builtin.copy:
+        src: ../edge/iptables-rules.v4
+        dest: /etc/iptables/rules.v4
+        mode: "0644"
+
+    - name: Enable and start all services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+      loop:
+        - ap-ip
+        - hostapd
+        - dnsmasq
+        - wpa_supplicant@wlan1
+        - dhcpcd
+        - netfilter-persistent

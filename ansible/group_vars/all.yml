@@ -1,0 +1,14 @@
+---
+# Non-secret configuration shared by both nodes.
+country_code: "AT"
+
+edge_ssid: "EDGE-IOT-XX"
+server_ssid: "SERVER-IOT-XX"
+
+mqtt_user: "iot"
+
+# Wi-Fi passphrases and the MQTT password are SECRETS and must NOT be stored here.
+# Provide them with an encrypted vault file or on the command line, e.g.:
+#   ansible-playbook site.yml --extra-vars @secrets.yml --ask-vault-pass
+# Required variables:
+#   edge_wifi_password, server_wifi_password, mqtt_password
