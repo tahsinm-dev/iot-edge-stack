@@ -1,0 +1,28 @@
+# --- Secrets / echte Zugangsdaten (NIE committen) ---
+secrets/
+.env
+*.secret
+*.local.conf
+**/CLAUDE.local.md
+wpa_supplicant*.real.conf
+
+# --- Claude Code: persönliche, lokale Einstellungen ---
+.claude/settings.local.json
+
+# --- Laufzeit-/Geräteartefakte ---
+*.leases
+dnsmasq.leases
+*.log
+
+# --- Python (Exporter) ---
+__pycache__/
+*.pyc
+.venv/
+mqtt_exporter_venv/
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+*~
+.vscode/
+.idea/

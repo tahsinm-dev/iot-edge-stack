@@ -1,0 +1,15 @@
+[Unit]
+Description=Virtuelles AP-Interface uap0 auf wlan0 anlegen
+After=sys-subsystem-net-devices-wlan0.device
+Wants=sys-subsystem-net-devices-wlan0.device
+Before=hostapd.service dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/iw dev wlan0 interface add uap0 type __ap
+ExecStart=/sbin/ip link set uap0 up
+ExecStop=/sbin/iw dev uap0 del
+
+[Install]
+WantedBy=multi-user.target
