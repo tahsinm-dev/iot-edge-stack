@@ -32,19 +32,9 @@ ESP32 · MQTT · Prometheus · Grafana · Docker · Ansible
 
 ## Architecture
 
-```
- ESP32 + BME280
-      │  Wi-Fi (sensor net 192.168.166.0/24)
-      ▼
- EDGE  Raspberry Pi      wlan0 = access point
-      │                  wlan1 = uplink (USB)  + NAT / IP forwarding
-      │  Wi-Fi (backbone 192.168.176.0/24)
-      ▼
- SERVER  Raspberry Pi    Mosquitto · MQTT exporter · Prometheus
-      │
-      ▼
- Grafana  (laptop / Docker)
-```
+![w:1150](images/architecture_image.png)
+
+<!-- _footer: 'ESP32 sensors → edge gateway (AP + routing/NAT) → server (MQTT + Prometheus) → Grafana' -->
 
 ---
 
