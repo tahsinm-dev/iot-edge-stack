@@ -76,8 +76,13 @@ signal for two sensor nodes, provisioned automatically from code:
 
 ### Option A — Containerised backend (no hardware needed)
 
-Reproduce the whole backend on any machine with Docker in about a minute. Clone the
-repository, then:
+Reproduce the whole backend on any machine with Docker in about a minute.
+
+> **Prerequisite:** Docker must be installed **and running**. On Windows/macOS, start
+> **Docker Desktop** first and wait until it reports **“Engine running”** — otherwise
+> `docker compose` aborts with a *“cannot connect to the Docker daemon”* error.
+
+Clone the repository, then:
 
 ```bash
 cd monitoring

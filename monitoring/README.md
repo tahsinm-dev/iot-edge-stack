@@ -11,6 +11,10 @@ ESP32 / mosquitto_pub ──MQTT──▶ Mosquitto ──▶ MQTT exporter ─�
 
 ## Quick start
 
+> **Prerequisite:** make sure Docker is running first — on Windows/macOS start
+> **Docker Desktop** and wait for **“Engine running”**, otherwise `docker compose`
+> cannot reach the daemon.
+
 ```bash
 cd monitoring
 cp .env.example .env          # adjust credentials
