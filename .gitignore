@@ -1,39 +1,34 @@
-# --- Secrets / echte Zugangsdaten (NIE committen) ---
+# --- Secrets / credentials (never commit) ---
 secrets/
 .env
 *.secret
 *.local.conf
-**/CLAUDE.local.md
 wpa_supplicant*.real.conf
 
-# --- Lokale Entwicklungs-Werkzeuge: NICHT ins öffentliche Repo ---
-.claude/
-CLAUDE.md
-
-# --- Laufzeit-/Geräteartefakte ---
+# --- Runtime / device artefacts ---
 *.leases
 dnsmasq.leases
 *.log
 
-# --- Docker monitoring stack: lokale Secrets/Laufzeitdaten ---
+# --- Docker monitoring stack: local secrets / runtime data ---
 monitoring/.env
 monitoring/mosquitto/config/passwordfile
 monitoring/mosquitto/certs/
 
-# --- Ansible: Secrets/Laufzeit ---
+# --- Ansible: secrets / runtime ---
 ansible/secrets.yml
 *.retry
 
-# --- Slides: PPTX wird aus docs/slides.md generiert (PDF wird eingecheckt) ---
+# --- Slides: PPTX is generated from docs/slides.md (the PDF is committed) ---
 docs/slides.pptx
 
-# --- Python (Exporter) ---
+# --- Python ---
 __pycache__/
 *.pyc
 .venv/
 mqtt_exporter_venv/
 
-# --- OS / Editor ---
+# --- OS / editors ---
 .DS_Store
 Thumbs.db
 *~
