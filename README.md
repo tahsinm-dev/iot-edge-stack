@@ -37,31 +37,7 @@ Prometheus and visualised in Grafana.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    ESP["ESP32 + BME280<br/>(sensor node)"]
-
-    subgraph EDGE["EDGE - Raspberry Pi Zero 2 W"]
-        EAP["wlan0 onboard<br/>AP: EDGE-IOT-XX<br/>192.168.166.1"]
-        ESTA["wlan1 USB<br/>STA to SERVER-IOT-XX<br/>192.168.176.2"]
-        EAP -->|"IP forward + NAT"| ESTA
-    end
-
-    subgraph SERVER["SERVER - Raspberry Pi Zero 2 W"]
-        SAP["wlan0 onboard<br/>AP: SERVER-IOT-XX<br/>192.168.176.1"]
-        MQ["Mosquitto<br/>:1883"]
-        EX["MQTT exporter<br/>:9101"]
-        PR["Prometheus<br/>:9090"]
-        SAP --- MQ
-        MQ --> EX --> PR
-    end
-
-    GF["Grafana<br/>(laptop / Docker)"]
-
-    ESP -->|"Wi-Fi - sensor net<br/>192.168.166.0/24"| EAP
-    ESTA -->|"Wi-Fi - backbone<br/>192.168.176.0/24"| SAP
-    PR --> GF
-```
+![Architecture](docs/images/architecture_image.png)
 
 **Data flow:** the ESP32 joins the edge access point and publishes
 `sensor/<device>/bme280` JSON messages. The edge gateway NATs the traffic onto the
