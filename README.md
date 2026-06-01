@@ -15,6 +15,8 @@ MQTT. An **edge gateway** bridges an isolated sensor Wi-Fi into a backbone Wi-Fi
 and routes the traffic to a **monitoring server**, where the data is stored in
 Prometheus and visualised in Grafana.
 
+📊 Short presentation: [`docs/slides.pdf`](docs/slides.pdf)
+
 ---
 
 ## Highlights

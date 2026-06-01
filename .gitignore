@@ -23,6 +23,9 @@ monitoring/mosquitto/config/passwordfile
 ansible/secrets.yml
 *.retry
 
+# --- Slides: PPTX wird aus docs/slides.md generiert (PDF wird eingecheckt) ---
+docs/slides.pptx
+
 # --- Python (Exporter) ---
 __pycache__/
 *.pyc
