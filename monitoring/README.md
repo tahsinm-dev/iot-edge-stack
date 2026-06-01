@@ -41,6 +41,20 @@ docker compose exec mosquitto mosquitto_pub \
 
 Within ~15 s the values appear in Prometheus and on the Grafana dashboard.
 
+For a **live** dashboard, stream continuously from both nodes (`esp32_01` and
+`esp32_02`) with randomised readings — stop with `Ctrl-C`:
+
+```bash
+while true; do
+  for id in 01 02; do
+    docker compose exec -T mosquitto mosquitto_pub -u "$MQTT_USER" -P "$MQTT_PASSWORD" \
+      -t "sensor/esp32_$id/bme280" \
+      -m "{\"temp\":$((18+RANDOM%12)).$((RANDOM%10)),\"hum\":$((40+RANDOM%25)).$((RANDOM%10)),\"press\":$((1005+RANDOM%20)).$((RANDOM%10)),\"rssi\":-$((45+RANDOM%35))}"
+  done
+  sleep 5
+done
+```
+
 ## TLS
 
 The broker also exposes a **TLS listener on `8883`** for external clients. A local

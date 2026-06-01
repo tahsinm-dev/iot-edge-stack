@@ -104,6 +104,20 @@ docker compose exec mosquitto mosquitto_pub -u iot -P changeme \
   -t sensor/esp32_01/bme280 -m '{"temp":23.5,"hum":45.2,"press":1013.2,"rssi":-57}'
 ```
 
+To make the dashboard **live**, stream continuously from both simulated nodes
+(`esp32_01` and `esp32_02`) with randomised readings — stop with `Ctrl-C`:
+
+```bash
+while true; do
+  for id in 01 02; do
+    docker compose exec -T mosquitto mosquitto_pub -u iot -P changeme \
+      -t "sensor/esp32_$id/bme280" \
+      -m "{\"temp\":$((18+RANDOM%12)).$((RANDOM%10)),\"hum\":$((40+RANDOM%25)).$((RANDOM%10)),\"press\":$((1005+RANDOM%20)).$((RANDOM%10)),\"rssi\":-$((45+RANDOM%35))}"
+  done
+  sleep 5
+done
+```
+
 Tear everything down with `docker compose down -v`. More detail — TLS, alert rules,
 provisioning — is in [`monitoring/README.md`](monitoring/README.md).
 
