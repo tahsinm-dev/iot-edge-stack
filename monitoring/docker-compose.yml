@@ -25,6 +25,8 @@ services:
       - |
         if [ ! -f /mosquitto/config/passwordfile ]; then
           mosquitto_passwd -b -c /mosquitto/config/passwordfile "$$MQTT_USER" "$$MQTT_PASSWORD"
+          chmod 0700 /mosquitto/config/passwordfile
+          chown 1883:1883 /mosquitto/config/passwordfile
           echo "Created Mosquitto password file for user '$$MQTT_USER'."
         else
           echo "Mosquitto password file already exists - keeping it."
@@ -40,8 +42,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/config/passwordfile:/mosquitto/config/passwordfile:ro
+      - ./mosquitto/config:/mosquitto/config
       - mosquitto_data:/mosquitto/data
 
   mqtt-exporter:
@@ -92,7 +93,7 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
 
 volumes:
   mosquitto_data:
