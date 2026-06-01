@@ -2,6 +2,7 @@
 
 > End-to-end IoT telemetry pipeline on Raspberry Pi: **ESP32 sensor nodes → Wi-Fi edge gateway (routing/NAT) → monitoring server (MQTT + Prometheus) → Grafana dashboards.** The server-side backend also ships as a one-command Docker stack.
 
+[![CI](https://github.com/tahsinm-dev/iot-edge-stack/actions/workflows/ci.yml/badge.svg)](https://github.com/tahsinm-dev/iot-edge-stack/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 ![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a)
 ![Firmware](https://img.shields.io/badge/firmware-ESP32-000000)
