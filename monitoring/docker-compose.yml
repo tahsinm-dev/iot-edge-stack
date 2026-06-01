@@ -32,6 +32,14 @@ services:
           echo "Mosquitto password file already exists - keeping it."
         fi
 
+  # One-shot: generate the broker TLS certificate (CA + server) on first run.
+  tls-init:
+    image: alpine:3.20
+    volumes:
+      - ./mosquitto/certs:/certs
+      - ./tls/gen-certs.sh:/gen-certs.sh:ro
+    command: sh -c "apk add --no-cache openssl >/dev/null && sh /gen-certs.sh /certs"
+
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: mosquitto
@@ -39,10 +47,14 @@ services:
     depends_on:
       mosquitto-init:
         condition: service_completed_successfully
+      tls-init:
+        condition: service_completed_successfully
     ports:
       - "1883:1883"
+      - "8883:8883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/certs:/mosquitto/certs:ro
       - mosquitto_data:/mosquitto/data
 
   mqtt-exporter:

@@ -18,6 +18,7 @@ dnsmasq.leases
 # --- Docker monitoring stack: lokale Secrets/Laufzeitdaten ---
 monitoring/.env
 monitoring/mosquitto/config/passwordfile
+monitoring/mosquitto/certs/
 
 # --- Ansible: Secrets/Laufzeit ---
 ansible/secrets.yml

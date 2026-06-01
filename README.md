@@ -32,8 +32,8 @@ Prometheus and visualised in Grafana.
   the Raspberry Pis are provisioned with **Ansible**.
 - **Embedded firmware** — ESP32 sketch (C++/Arduino) with the BME280 sensor,
   auto-reconnect, MQTT Last-Will and a Wi-Fi signal metric.
-- **Security-aware** — authenticated MQTT broker, non-root containers, no secrets in
-  version control.
+- **Security-aware** — authenticated MQTT broker with a **TLS** listener, non-root
+  containers, no secrets in version control (see [`docs/security.md`](docs/security.md)).
 
 ## Architecture
 

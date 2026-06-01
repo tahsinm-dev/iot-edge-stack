@@ -37,11 +37,27 @@ docker compose exec mosquitto mosquitto_pub \
 
 Within ~15 s the values appear in Prometheus and on the Grafana dashboard.
 
+## TLS
+
+The broker also exposes a **TLS listener on `8883`** for external clients. A local
+CA and server certificate are generated automatically on first start by the
+`tls-init` service. Publish over TLS with the generated CA certificate:
+
+```bash
+docker compose exec mosquitto mosquitto_pub \
+  -h localhost -p 8883 --cafile /mosquitto/certs/ca.crt \
+  -u "$MQTT_USER" -P "$MQTT_PASSWORD" \
+  -t sensor/esp32_01/bme280 -m '{"temp":23.5,"hum":45.2,"press":1013.2,"rssi":-57}'
+```
+
+Internal services use the trusted Docker network (`1883`). See
+[`../docs/security.md`](../docs/security.md) for the full security model.
+
 ## What this demonstrates
 
 - **Infrastructure as code** — broker, database and dashboards defined in version control, reproducible with one command.
 - **Provisioning as code** — Grafana data source and dashboard, Prometheus scrape config and alert rules are all declarative.
-- **Security** — the broker requires authentication (`allow_anonymous false`); the exporter runs as a non-root container.
+- **Security** — authenticated broker (`allow_anonymous false`), **TLS listener**, non-root exporter container, no secrets in git.
 - **Observability** — custom Prometheus exporter, alert rules (sensor offline, exporter down, implausible readings).
 
 ## Layout

@@ -29,6 +29,8 @@ MQTT_USER = os.getenv("MQTT_USER") or None
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD") or None
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "sensor/#")
 EXPORTER_PORT = int(os.getenv("EXPORTER_PORT", "9101"))
+MQTT_TLS = os.getenv("MQTT_TLS", "false").lower() in ("1", "true", "yes")
+MQTT_CA_CERT = os.getenv("MQTT_CA_CERT") or None
 
 TEMPERATURE = Gauge("bme280_temperature_celsius", "Temperature in degrees Celsius", ["device"])
 HUMIDITY = Gauge("bme280_humidity_percent", "Relative humidity in percent", ["device"])
@@ -68,6 +70,8 @@ def main() -> None:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    if MQTT_TLS:
+        client.tls_set(ca_certs=MQTT_CA_CERT)
     client.on_connect = on_connect
     client.on_message = on_message
     client.reconnect_delay_set(min_delay=1, max_delay=30)
