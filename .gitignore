@@ -6,8 +6,9 @@ secrets/
 **/CLAUDE.local.md
 wpa_supplicant*.real.conf
 
-# --- Claude Code: persönliche, lokale Einstellungen ---
-.claude/settings.local.json
+# --- Lokale Entwicklungs-Werkzeuge: NICHT ins öffentliche Repo ---
+.claude/
+CLAUDE.md
 
 # --- Laufzeit-/Geräteartefakte ---
 *.leases
