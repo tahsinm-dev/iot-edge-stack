@@ -1,0 +1,16 @@
+# Static IP for the EDGE access-point interface (sensor network).
+# Deploy to: /etc/systemd/system/ap-ip.service
+[Unit]
+Description=Static IP for the EDGE access point (wlan0)
+After=hostapd.service
+Wants=hostapd.service
+Before=dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/sbin/ip link set wlan0 up
+ExecStart=/sbin/ip addr replace 192.168.166.1/24 dev wlan0
+
+[Install]
+WantedBy=multi-user.target

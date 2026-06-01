@@ -1,0 +1,17 @@
+# Runs the MQTT->Prometheus exporter natively on the server.
+# Deploy to: /etc/systemd/system/mqtt-exporter.service
+# Secrets (MQTT_USER/MQTT_PASSWORD) live in /etc/mqtt-exporter.env (not in git).
+[Unit]
+Description=MQTT to Prometheus exporter
+After=network-online.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+User=mqtt-exporter
+EnvironmentFile=/etc/mqtt-exporter.env
+ExecStart=/opt/mqtt-exporter/venv/bin/python /opt/mqtt-exporter/mqtt_exporter.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

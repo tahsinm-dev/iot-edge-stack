@@ -1,0 +1,18 @@
+# Assigns the static AP address deterministically, after hostapd has brought the
+# radio up and before dnsmasq starts. This avoids the dhcpcd "wait for carrier"
+# race that can leave an access-point interface without an address.
+# Deploy to: /etc/systemd/system/ap-ip.service
+[Unit]
+Description=Static IP for the SERVER access point (wlan0)
+After=hostapd.service
+Wants=hostapd.service
+Before=dnsmasq.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/sbin/ip link set wlan0 up
+ExecStart=/sbin/ip addr replace 192.168.176.1/24 dev wlan0
+
+[Install]
+WantedBy=multi-user.target
