@@ -99,24 +99,38 @@ signal for two sensor nodes, provisioned automatically from code:
 
 ### Option A — Containerised backend (no hardware needed)
 
-Bring up the whole server-side stack on any Docker host:
+Reproduce the whole backend on any machine with Docker in about a minute. Clone the
+repository, then:
 
 ```bash
 cd monitoring
 cp .env.example .env
 docker compose up -d --build
-# Grafana    -> http://localhost:3000
-# Prometheus -> http://localhost:9090
 ```
 
-See [`monitoring/README.md`](monitoring/README.md) for details and how to feed demo
-data.
+| Service    | URL                     | Login                 |
+|------------|-------------------------|-----------------------|
+| Grafana    | http://localhost:3000   | `admin` / `admin`     |
+| Prometheus | http://localhost:9090   | —                     |
+| MQTT       | `localhost:1883`        | `iot` / `changeme`    |
+
+Publish a sample reading and watch it appear on the **IoT Sensors – BME280**
+dashboard within ~15 seconds (credentials are the defaults from `.env.example`):
+
+```bash
+docker compose exec mosquitto mosquitto_pub -u iot -P changeme \
+  -t sensor/esp32_01/bme280 -m '{"temp":23.5,"hum":45.2,"press":1013.2,"rssi":-57}'
+```
+
+Tear everything down with `docker compose down -v`. More detail — TLS, alert rules,
+provisioning — is in [`monitoring/README.md`](monitoring/README.md).
 
 ### Option B — Full hardware deployment
 
-Provision the two Raspberry Pis and flash the ESP32. Configuration templates live in
-[`edge/`](edge/) and [`server/`](server/); the build and commissioning log is in
-[`PROTOKOLL.md`](PROTOKOLL.md).
+Provision the two Raspberry Pis and flash the ESP32. The [Ansible playbooks](ansible/)
+apply the [`edge/`](edge/) and [`server/`](server/) configuration in one command; the
+firmware is in [`firmware/`](firmware/), and the commissioning log with the per-step
+verification is in [`PROTOKOLL.md`](PROTOKOLL.md).
 
 ## Repository structure
 
